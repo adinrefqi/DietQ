@@ -12,6 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import type { FastingSession, FastingProtocol } from "@/types/database";
 
 interface FastingClientProps {
@@ -19,7 +20,6 @@ interface FastingClientProps {
   history: FastingSession[];
 }
 
-// Pilihan protokol → jam puasa + deskripsi.
 const PROTOCOLS: Array<{
   id: FastingProtocol;
   label: string;
@@ -35,7 +35,6 @@ const PROTOCOLS: Array<{
 
 const HOUR_MS = 3_600_000;
 
-// Format milidetik → "16j 23m 5d"
 function fmtDuration(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
   const h = Math.floor(total / 3600);
@@ -44,7 +43,6 @@ function fmtDuration(ms: number): string {
   return `${h}j ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}d`;
 }
 
-// Format jam (waktu) lokal "HH.MM"
 function fmtClock(d: Date): string {
   return `${String(d.getHours()).padStart(2, "0")}.${String(d.getMinutes()).padStart(2, "0")}`;
 }
@@ -56,25 +54,19 @@ export function FastingClient({ active, history }: FastingClientProps) {
   const [busy, setBusy] = useState(false);
   const [now, setNow] = useState(() => Date.now());
 
-  // Tick tiap detik saat ada puasa aktif.
   useEffect(() => {
     if (!active) return;
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [active]);
 
-  // ── Mulai puasa ──
   async function startFast() {
     if (busy) return;
     setBusy(true);
     try {
       const isCustom = protocol === "custom";
-      const hours = isCustom
-        ? customHours
-        : PROTOCOLS.find((p) => p.id === protocol)?.hours ?? 16;
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const hours = isCustom ? customHours : PROTOCOLS.find((p) => p.id === protocol)?.hours ?? 16;
+      const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase.from("fasting_sessions").insert({
         user_id: user?.id,
         protocol,
@@ -90,7 +82,6 @@ export function FastingClient({ active, history }: FastingClientProps) {
     }
   }
 
-  // ── Selesai puasa (catat end_at) ──
   async function endFast() {
     if (busy || !active) return;
     setBusy(true);
@@ -107,16 +98,12 @@ export function FastingClient({ active, history }: FastingClientProps) {
     }
   }
 
-  // ── Batalkan puasa (hapus sesi) ──
   async function cancelFast() {
     if (busy || !active) return;
     if (!confirm("Batalkan puasa ini? Sesi tidak akan tersimpan.")) return;
     setBusy(true);
     try {
-      const { error } = await supabase
-        .from("fasting_sessions")
-        .delete()
-        .eq("id", active.id);
+      const { error } = await supabase.from("fasting_sessions").delete().eq("id", active.id);
       if (error) throw error;
       window.location.reload();
     } catch (err) {
@@ -126,13 +113,16 @@ export function FastingClient({ active, history }: FastingClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-4 py-4">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors">
+      <header className="sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-4 transition-colors">
         <div className="mx-auto flex max-w-2xl items-center gap-4">
-          <Link href="/dashboard" className="text-zinc-500 hover:text-zinc-800">
+          <Link href="/dashboard" className="text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200">
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-lg font-bold text-zinc-900">Intermittent Fasting</h1>
+          <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Intermittent Fasting</h1>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
@@ -159,23 +149,21 @@ export function FastingClient({ active, history }: FastingClientProps) {
         {/* Riwayat */}
         {history.length > 0 && (
           <section>
-            <h2 className="mb-2 px-1 text-sm font-semibold text-zinc-900">Riwayat</h2>
+            <h2 className="mb-2 px-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Riwayat</h2>
             <div className="space-y-2">
               {history.map((s) => {
-                const durMs =
-                  new Date(s.end_at as string).getTime() -
-                  new Date(s.start_at).getTime();
+                const durMs = new Date(s.end_at as string).getTime() - new Date(s.start_at).getTime();
                 const reached = durMs >= s.target_hours * HOUR_MS;
                 return (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm ring-1 ring-zinc-200"
+                    className="flex items-center justify-between rounded-xl bg-white dark:bg-zinc-900 p-3 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors"
                   >
                     <div>
-                      <p className="font-medium text-zinc-900">
+                      <p className="font-medium text-zinc-900 dark:text-zinc-100">
                         {s.protocol === "custom" ? `${s.target_hours} jam` : s.protocol}
                       </p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
                         {new Date(s.start_at).toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
@@ -186,8 +174,8 @@ export function FastingClient({ active, history }: FastingClientProps) {
                     <span
                       className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${
                         reached
-                          ? "bg-green-50 text-green-700"
-                          : "bg-zinc-100 text-zinc-500"
+                          ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
                       }`}
                     >
                       {reached && <Check className="h-3 w-3" />}
@@ -204,7 +192,6 @@ export function FastingClient({ active, history }: FastingClientProps) {
   );
 }
 
-// ── Tampilan saat ada puasa berjalan ──
 function ActiveFast({
   active,
   now,
@@ -226,17 +213,16 @@ function ActiveFast({
   const frac = Math.min(1, Math.max(0, elapsedMs / targetMs));
   const projectedEnd = new Date(startMs + targetMs);
 
-  // Lingkaran progress.
   const R = 80;
   const C = 2 * Math.PI * R;
   const offset = C * (1 - frac);
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200">
+    <section className="rounded-2xl bg-white dark:bg-zinc-900 p-6 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
       <div className="flex flex-col items-center">
         <div className="relative h-52 w-52">
           <svg className="h-full w-full -rotate-90" viewBox="0 0 180 180">
-            <circle cx="90" cy="90" r={R} fill="none" stroke="#e4e4e7" strokeWidth="12" />
+            <circle cx="90" cy="90" r={R} fill="none" stroke="#e4e4e7" strokeWidth="12" className="dark:stroke-zinc-700" />
             <circle
               cx="90"
               cy="90"
@@ -251,13 +237,13 @@ function ActiveFast({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+            <span className="text-xs font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
               {reached ? "Target tercapai" : "Sedang puasa"}
             </span>
-            <span className="mt-1 text-2xl font-bold tabular-nums text-zinc-900">
+            <span className="mt-1 text-2xl font-bold tabular-nums text-zinc-900 dark:text-zinc-100">
               {fmtDuration(elapsedMs)}
             </span>
-            <span className="mt-1 text-xs text-zinc-500">
+            <span className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
               {reached
                 ? `+${fmtDuration(-remainingMs)} melewati target`
                 : `${fmtDuration(remainingMs)} lagi`}
@@ -267,18 +253,18 @@ function ActiveFast({
 
         <div className="mt-4 flex w-full items-center justify-around text-center text-sm">
           <div>
-            <p className="text-xs text-zinc-400">Protokol</p>
-            <p className="font-semibold text-zinc-900">
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Protokol</p>
+            <p className="font-semibold text-zinc-900 dark:text-zinc-100">
               {active.protocol === "custom" ? `${active.target_hours}j` : active.protocol}
             </p>
           </div>
           <div>
-            <p className="text-xs text-zinc-400">Mulai</p>
-            <p className="font-semibold text-zinc-900">{fmtClock(new Date(startMs))}</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Mulai</p>
+            <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtClock(new Date(startMs))}</p>
           </div>
           <div>
-            <p className="text-xs text-zinc-400">Target selesai</p>
-            <p className="font-semibold text-zinc-900">{fmtClock(projectedEnd)}</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">Target selesai</p>
+            <p className="font-semibold text-zinc-900 dark:text-zinc-100">{fmtClock(projectedEnd)}</p>
           </div>
         </div>
 
@@ -286,7 +272,7 @@ function ActiveFast({
           onClick={onEnd}
           disabled={busy}
           className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 font-semibold text-white transition-colors disabled:opacity-50 ${
-            reached ? "bg-green-600 hover:bg-green-700" : "bg-zinc-900 hover:bg-zinc-800"
+            reached ? "bg-green-600 hover:bg-green-700" : "bg-indigo-600 hover:bg-indigo-700"
           }`}
         >
           {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Square className="h-5 w-5" />}
@@ -295,7 +281,7 @@ function ActiveFast({
         <button
           onClick={onCancel}
           disabled={busy}
-          className="mt-2 flex items-center gap-1 text-sm text-zinc-400 hover:text-red-500 disabled:opacity-50"
+          className="mt-2 flex items-center gap-1 text-sm text-zinc-400 hover:text-red-500 disabled:opacity-50 dark:text-zinc-500 dark:hover:text-red-400"
         >
           <X className="h-4 w-4" />
           Batalkan
@@ -305,7 +291,6 @@ function ActiveFast({
   );
 }
 
-// ── Tampilan saat belum ada puasa: pilih protokol & mulai ──
 function StartFast({
   protocol,
   setProtocol,
@@ -322,14 +307,14 @@ function StartFast({
   onStart: () => void;
 }) {
   return (
-    <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+    <section className="rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white">
           <Hourglass className="h-5 w-5" />
         </div>
         <div>
-          <p className="font-semibold text-zinc-900">Pilih protokol puasa</p>
-          <p className="text-xs text-zinc-500">Timer mulai begitu kamu tekan Mulai</p>
+          <p className="font-semibold text-zinc-900 dark:text-zinc-100">Pilih protokol puasa</p>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">Timer mulai begitu kamu tekan Mulai</p>
         </div>
       </div>
 
@@ -340,15 +325,15 @@ function StartFast({
             onClick={() => setProtocol(p.id)}
             className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
               protocol === p.id
-                ? "border-indigo-600 bg-indigo-50"
-                : "border-zinc-200 hover:border-zinc-300"
+                ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30"
+                : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
             }`}
           >
             <div>
-              <p className="font-semibold text-zinc-900">{p.label}</p>
-              <p className="text-xs text-zinc-500">{p.desc}</p>
+              <p className="font-semibold text-zinc-900 dark:text-zinc-100">{p.label}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{p.desc}</p>
             </div>
-            {protocol === p.id && <Check className="h-5 w-5 text-indigo-600" />}
+            {protocol === p.id && <Check className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
           </button>
         ))}
 
@@ -357,12 +342,12 @@ function StartFast({
           onClick={() => setProtocol("custom")}
           className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
             protocol === "custom"
-              ? "border-indigo-600 bg-indigo-50"
-              : "border-zinc-200 hover:border-zinc-300"
+              ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/30"
+              : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600"
           }`}
         >
           <div className="flex items-center gap-3">
-            <p className="font-semibold text-zinc-900">Kustom</p>
+            <p className="font-semibold text-zinc-900 dark:text-zinc-100">Kustom</p>
             {protocol === "custom" && (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <input
@@ -370,16 +355,14 @@ function StartFast({
                   min={1}
                   max={48}
                   value={customHours}
-                  onChange={(e) =>
-                    setCustomHours(Math.min(48, Math.max(1, Number(e.target.value) || 1)))
-                  }
-                  className="w-16 rounded-lg border border-zinc-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
+                  onChange={(e) => setCustomHours(Math.min(48, Math.max(1, Number(e.target.value) || 1)))}
+                  className="w-16 rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-100 focus:border-indigo-500 focus:outline-none"
                 />
-                <span className="text-sm text-zinc-500">jam</span>
+                <span className="text-sm text-zinc-500 dark:text-zinc-400">jam</span>
               </div>
             )}
           </div>
-          {protocol === "custom" && <Check className="h-5 w-5 text-indigo-600" />}
+          {protocol === "custom" && <Check className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />}
         </button>
       </div>
 

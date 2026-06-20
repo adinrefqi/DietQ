@@ -15,10 +15,11 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import type { FoodLog, MealType } from "@/types/database";
 
 interface HistoryClientProps {
-  date: string; // yyyy-MM-dd yang sedang dilihat
+  date: string;
   today: string;
   logs: FoodLog[];
 }
@@ -113,43 +114,46 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="sticky top-0 z-10 border-b border-zinc-200 bg-white px-4 py-4">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors">
+      <header className="sticky top-0 z-10 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 py-4 transition-colors">
         <div className="mx-auto flex max-w-2xl items-center gap-4">
-          <Link href="/dashboard" className="text-zinc-500 hover:text-zinc-800">
+          <Link href="/dashboard" className="text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200">
             <ChevronLeft className="h-5 w-5" />
           </Link>
-          <h1 className="text-lg font-bold text-zinc-900">Riwayat Makanan</h1>
+          <h1 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">Riwayat Makanan</h1>
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-2xl space-y-4 px-4 py-4">
         {/* Navigasi tanggal */}
-        <div className="flex items-center justify-between rounded-2xl bg-white p-2 shadow-sm ring-1 ring-zinc-200">
+        <div className="flex items-center justify-between rounded-2xl bg-white dark:bg-zinc-900 p-2 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
           <Link
             href={`/dashboard/history?date=${prevDate}`}
-            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+            className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
           >
             <ChevronLeft className="h-5 w-5" />
           </Link>
           <div className="flex items-center gap-2 text-center">
-            <CalendarDays className="h-4 w-4 text-zinc-400" />
+            <CalendarDays className="h-4 w-4 text-zinc-400 dark:text-zinc-600" />
             <div>
-              <p className="font-semibold text-zinc-900">
+              <p className="font-semibold text-zinc-900 dark:text-zinc-100">
                 {format(parseISO(date), "EEEE, d MMM yyyy", { locale: id })}
               </p>
-              {isToday && <p className="text-xs text-zinc-400">Hari ini</p>}
+              {isToday && <p className="text-xs text-zinc-400 dark:text-zinc-600">Hari ini</p>}
             </div>
           </div>
           {canNext ? (
             <Link
               href={`/dashboard/history?date=${nextDate}`}
-              className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100"
+              className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
             >
               <ChevronRight className="h-5 w-5" />
             </Link>
           ) : (
-            <span className="p-2 text-zinc-200">
+            <span className="p-2 text-zinc-200 dark:text-zinc-700">
               <ChevronRight className="h-5 w-5" />
             </span>
           )}
@@ -157,7 +161,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
 
         {/* Total harian */}
         {logs.length > 0 && (
-          <div className="grid grid-cols-4 gap-2 rounded-2xl bg-white p-4 text-center shadow-sm ring-1 ring-zinc-200">
+          <div className="grid grid-cols-4 gap-2 rounded-2xl bg-white dark:bg-zinc-900 p-4 text-center shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
             {[
               { label: "Kalori", value: `${Math.round(dayTotal.calories)}` },
               { label: "Protein", value: `${Math.round(dayTotal.protein_g)}g` },
@@ -165,8 +169,8 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
               { label: "Lemak", value: `${Math.round(dayTotal.fat_g)}g` },
             ].map((it) => (
               <div key={it.label}>
-                <p className="text-lg font-bold text-zinc-900">{it.value}</p>
-                <p className="text-xs text-zinc-400">{it.label}</p>
+                <p className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{it.value}</p>
+                <p className="text-xs text-zinc-400 dark:text-zinc-600">{it.label}</p>
               </div>
             ))}
           </div>
@@ -175,11 +179,11 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
         {/* List per meal */}
         {logs.length === 0 ? (
           <div className="py-16 text-center">
-            <p className="text-zinc-400">Tidak ada catatan di tanggal ini</p>
+            <p className="text-zinc-400 dark:text-zinc-600">Tidak ada catatan di tanggal ini</p>
             {isToday && (
               <Link
                 href="/dashboard/log"
-                className="mt-3 inline-block text-sm font-medium text-zinc-900 underline underline-offset-4"
+                className="mt-3 inline-block text-sm font-medium text-zinc-900 dark:text-zinc-100 underline underline-offset-4"
               >
                 + Catat makanan
               </Link>
@@ -193,21 +197,20 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
             return (
               <section key={meal.id}>
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <h2 className="text-sm font-semibold text-zinc-900">{meal.label}</h2>
-                  <span className="text-xs text-zinc-400">{Math.round(sub)} kcal</span>
+                  <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{meal.label}</h2>
+                  <span className="text-xs text-zinc-400 dark:text-zinc-600">{Math.round(sub)} kcal</span>
                 </div>
                 <div className="space-y-2">
                   {items.map((log) =>
                     editingId === log.id && form ? (
-                      /* ── Form edit ── */
                       <div
                         key={log.id}
-                        className="space-y-3 rounded-xl bg-white p-3 shadow-sm ring-2 ring-zinc-900"
+                        className="space-y-3 rounded-xl bg-white dark:bg-zinc-900 p-3 shadow-sm ring-2 ring-emerald-500 transition-colors"
                       >
                         <input
                           value={form.food_name}
                           onChange={(e) => setForm({ ...form, food_name: e.target.value })}
-                          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium focus:border-indigo-500 focus:outline-none"
+                          className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none"
                           placeholder="Nama makanan"
                         />
                         <div className="flex flex-wrap gap-1.5">
@@ -217,8 +220,8 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                               onClick={() => setForm({ ...form, meal_type: m.id })}
                               className={`rounded-lg border px-2.5 py-1 text-xs font-medium ${
                                 form.meal_type === m.id
-                                  ? "border-zinc-900 bg-zinc-900 text-white"
-                                  : "border-zinc-200 text-zinc-600"
+                                  ? "border-emerald-500 bg-emerald-500 text-white"
+                                  : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400"
                               }`}
                             >
                               {m.label}
@@ -236,7 +239,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                             ] as const
                           ).map(([key, lbl]) => (
                             <label key={key} className="text-center">
-                              <span className="mb-0.5 block text-[10px] text-zinc-400">{lbl}</span>
+                              <span className="mb-0.5 block text-[10px] text-zinc-400 dark:text-zinc-600">{lbl}</span>
                               <input
                                 type="number"
                                 min={0}
@@ -244,7 +247,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                                 onChange={(e) =>
                                   setForm({ ...form, [key]: Math.max(0, Number(e.target.value) || 0) })
                                 }
-                                className="w-full rounded-lg border border-zinc-300 px-1 py-1.5 text-center text-sm focus:border-indigo-500 focus:outline-none"
+                                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-1 py-1.5 text-center text-sm text-zinc-900 dark:text-zinc-100 focus:border-emerald-500 focus:outline-none"
                               />
                             </label>
                           ))}
@@ -253,7 +256,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                           <button
                             onClick={() => saveEdit(log.id)}
                             disabled={busyId === log.id}
-                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-zinc-900 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                           >
                             {busyId === log.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -267,7 +270,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                               setEditingId(null);
                               setForm(null);
                             }}
-                            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-600 hover:bg-zinc-50"
+                            className="flex items-center gap-1.5 rounded-lg border border-zinc-300 dark:border-zinc-700 px-3 text-sm text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                           >
                             <X className="h-4 w-4" />
                             Batal
@@ -275,14 +278,13 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                         </div>
                       </div>
                     ) : (
-                      /* ── Tampilan biasa ── */
                       <div
                         key={log.id}
-                        className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm ring-1 ring-zinc-200"
+                        className="flex items-center justify-between rounded-xl bg-white dark:bg-zinc-900 p-3 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-zinc-900">{log.food_name}</p>
-                          <p className="text-xs text-zinc-500">
+                          <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">{log.food_name}</p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
                             {Math.round(log.calories)} kcal
                             {log.serving_size_g ? ` · ${Math.round(log.serving_size_g)}g` : ""} · P
                             {Math.round(log.protein_g)} K{Math.round(log.carbs_g)} L
@@ -292,7 +294,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                         <div className="ml-2 flex shrink-0 items-center gap-1">
                           <button
                             onClick={() => startEdit(log)}
-                            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+                            className="rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
                             aria-label="Edit"
                           >
                             <Pencil className="h-4 w-4" />
@@ -300,7 +302,7 @@ export function HistoryClient({ date, today, logs }: HistoryClientProps) {
                           <button
                             onClick={() => del(log.id)}
                             disabled={busyId === log.id}
-                            className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+                            className="rounded-lg p-2 text-zinc-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50 dark:text-zinc-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                             aria-label="Hapus"
                           >
                             {busyId === log.id ? (
