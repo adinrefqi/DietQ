@@ -2,7 +2,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { format, subDays } from "date-fns";
-import type { DailyNutritionSummary, DailyWaterSummary, Profile } from "@/types/database";
+import type {
+  DailyNutritionSummary,
+  DailyWaterSummary,
+  Profile,
+  FastingSession,
+} from "@/types/database";
 import { DashboardClient } from "./client";
 
 export default async function DashboardPage() {
@@ -16,26 +21,37 @@ export default async function DashboardPage() {
   const today = format(new Date(), "yyyy-MM-dd");
   const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
 
-  // Fetch profile + goals
-  const [{ data: profile }, { data: goals }, { data: nutrition7d }, { data: water7d }] =
-    await Promise.all([
-      supabase.from("profiles").select("*").eq("id", userId).single(),
-      supabase.from("user_goals").select("*").eq("user_id", userId).single(),
-      supabase
-        .from("daily_nutrition_summary")
-        .select("*")
-        .eq("user_id", userId)
-        .gte("log_date", sevenDaysAgo)
-        .lte("log_date", today)
-        .order("log_date", { ascending: true }),
-      supabase
-        .from("daily_water_summary")
-        .select("*")
-        .eq("user_id", userId)
-        .gte("log_date", sevenDaysAgo)
-        .lte("log_date", today)
-        .order("log_date", { ascending: true }),
-    ]);
+  // Fetch profile + goals + sesi puasa aktif
+  const [
+    { data: profile },
+    { data: goals },
+    { data: nutrition7d },
+    { data: water7d },
+    { data: activeFast },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*").eq("id", userId).single(),
+    supabase.from("user_goals").select("*").eq("user_id", userId).single(),
+    supabase
+      .from("daily_nutrition_summary")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("log_date", sevenDaysAgo)
+      .lte("log_date", today)
+      .order("log_date", { ascending: true }),
+    supabase
+      .from("daily_water_summary")
+      .select("*")
+      .eq("user_id", userId)
+      .gte("log_date", sevenDaysAgo)
+      .lte("log_date", today)
+      .order("log_date", { ascending: true }),
+    supabase
+      .from("fasting_sessions")
+      .select("*")
+      .eq("user_id", userId)
+      .is("end_at", null)
+      .maybeSingle(),
+  ]);
 
   // Merge days — fill gaps dengan default
   const days: Array<{ date: string; nutrition: DailyNutritionSummary | null; water: DailyWaterSummary | null }> = [];
@@ -52,6 +68,7 @@ export default async function DashboardPage() {
       goals={goals}
       days={days}
       today={today}
+      activeFast={(activeFast as FastingSession | null) ?? null}
     />
   );
 }

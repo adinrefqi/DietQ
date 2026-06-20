@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -16,9 +16,15 @@ import {
   Sparkles,
   ChevronRight,
   Hourglass,
+  History,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import type { DailyNutritionSummary, DailyWaterSummary, Profile } from "@/types/database";
+import type {
+  DailyNutritionSummary,
+  DailyWaterSummary,
+  Profile,
+  FastingSession,
+} from "@/types/database";
 
 interface DashboardClientProps {
   profile: Profile | null;
@@ -29,9 +35,24 @@ interface DashboardClientProps {
     nutrition: DailyNutritionSummary | null;
     water: DailyWaterSummary | null;
   }>;
+  activeFast: FastingSession | null;
 }
 
-export function DashboardClient({ profile, goals, days, today: todayDate }: DashboardClientProps) {
+// Format milidetik → "16j 23m"
+function fmtRemain(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 60000));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${h}j ${String(m).padStart(2, "0")}m`;
+}
+
+export function DashboardClient({
+  profile,
+  goals,
+  days,
+  today: todayDate,
+  activeFast,
+}: DashboardClientProps) {
   const g = goals as {
     daily_calorie_target?: number;
     daily_protein_g?: number;
@@ -47,6 +68,29 @@ export function DashboardClient({ profile, goals, days, today: todayDate }: Dash
   const today = days[days.length - 1];
   const todayCal = today?.nutrition?.total_calories ?? 0;
   const calPct = Math.min(100, Math.round((todayCal / calTarget) * 100));
+  const calLeft = calTarget - todayCal; // bisa negatif (kelebihan)
+
+  // ── Timer puasa (live, hanya saat ada sesi aktif) ──
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!activeFast) return;
+    const t = setInterval(() => setNowMs(Date.now()), 30000); // cukup 30 dtk di dashboard
+    return () => clearInterval(t);
+  }, [activeFast]);
+
+  const fast = activeFast
+    ? (() => {
+        const startMs = new Date(activeFast.start_at).getTime();
+        const targetMs = activeFast.target_hours * 3_600_000;
+        const elapsed = nowMs - startMs;
+        const remaining = targetMs - elapsed;
+        return {
+          reached: remaining <= 0,
+          remaining,
+          pct: Math.min(100, Math.max(0, (elapsed / targetMs) * 100)),
+        };
+      })()
+    : null;
 
   // ── Air minum (interaktif, optimistic) ──
   const supabase = createClient();
@@ -108,11 +152,14 @@ export function DashboardClient({ profile, goals, days, today: todayDate }: Dash
             <p className="text-2xl font-bold text-zinc-900">{todayCal}</p>
             <div className="mt-2 h-1.5 rounded-full bg-zinc-100">
               <div
-                className="h-1.5 rounded-full bg-orange-500 transition-all"
+                className={`h-1.5 rounded-full transition-all ${calLeft < 0 ? "bg-red-500" : "bg-orange-500"}`}
                 style={{ width: `${calPct}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-zinc-400">{calPct}% / {calTarget} kcal</p>
+            <p className={`mt-1 text-xs font-medium ${calLeft < 0 ? "text-red-500" : "text-zinc-500"}`}>
+              {calLeft >= 0 ? `Sisa ${calLeft} kcal` : `Lebih ${Math.abs(calLeft)} kcal`}
+            </p>
+            <p className="text-xs text-zinc-400">/ {calTarget} kcal</p>
           </div>
 
           {/* Air */}
@@ -225,20 +272,55 @@ export function DashboardClient({ profile, goals, days, today: todayDate }: Dash
           <ChevronRight className="h-5 w-5 text-white/80" />
         </Link>
 
-        {/* Intermittent Fasting */}
-        <Link
-          href="/dashboard/fasting"
-          className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
-        >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
-            <Hourglass className="h-5 w-5" />
-          </div>
-          <div className="flex-1">
-            <p className="font-semibold text-zinc-900">Intermittent Fasting</p>
-            <p className="text-xs text-zinc-500">Timer puasa berjendela (16:8, dll)</p>
-          </div>
-          <ChevronRight className="h-5 w-5 text-zinc-400" />
-        </Link>
+        {/* Intermittent Fasting — status live kalau ada sesi aktif */}
+        {fast ? (
+          <Link
+            href="/dashboard/fasting"
+            className={`block rounded-2xl px-5 py-4 text-white transition-opacity hover:opacity-90 ${
+              fast.reached
+                ? "bg-gradient-to-r from-green-600 to-emerald-600"
+                : "bg-gradient-to-r from-indigo-600 to-blue-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Hourglass className="h-6 w-6" />
+              <div className="flex-1">
+                <p className="font-semibold">
+                  {fast.reached ? "Target puasa tercapai! 🎉" : "Sedang puasa"}
+                </p>
+                <p className="text-xs text-white/80">
+                  {activeFast?.protocol === "custom"
+                    ? `${activeFast.target_hours} jam`
+                    : activeFast?.protocol}
+                  {fast.reached
+                    ? " · boleh akhiri kapan saja"
+                    : ` · ${fmtRemain(fast.remaining)} lagi`}
+                </p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-white/80" />
+            </div>
+            <div className="mt-3 h-1.5 rounded-full bg-white/30">
+              <div
+                className="h-1.5 rounded-full bg-white transition-all"
+                style={{ width: `${fast.pct}%` }}
+              />
+            </div>
+          </Link>
+        ) : (
+          <Link
+            href="/dashboard/fasting"
+            className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+              <Hourglass className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-zinc-900">Intermittent Fasting</p>
+              <p className="text-xs text-zinc-500">Timer puasa berjendela (16:8, dll)</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-zinc-400" />
+          </Link>
+        )}
 
         {/* Grafik 7 Hari */}
         <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
@@ -334,9 +416,13 @@ export function DashboardClient({ profile, goals, days, today: todayDate }: Dash
         <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-zinc-900">Log Makanan</h2>
-            <span className="text-xs text-zinc-500">
-              {today.nutrition?.meal_count ?? 0} makanan hari ini
-            </span>
+            <Link
+              href="/dashboard/history"
+              className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
+            >
+              <History className="h-3.5 w-3.5" />
+              Riwayat & edit
+            </Link>
           </div>
           {today.nutrition && today.nutrition.meal_count > 0 ? (
             <p className="text-sm text-zinc-600">

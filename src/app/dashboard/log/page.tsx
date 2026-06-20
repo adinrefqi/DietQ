@@ -1,4 +1,4 @@
-// Food Log page — camera + search + AI vision recognition
+// Food Log page — camera + barcode + AI vision + food search
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { FoodLogClient } from "./client";
@@ -8,12 +8,16 @@ export default async function FoodLogPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/login");
 
-  const { data: foods } = await supabase
+  // Initial load: fetch popular foods (top 50 by usage_count)
+  // Full search via /api/foods/search endpoint
+  const { data: popularFoods } = await supabase
     .from("foods")
     .select("id, name, category, serving_size_g, serving_size_text, calories_per_serving, protein_g, carbs_g, fat_g")
-    .eq("is_verified", true)
-    .order("name");
+    .is("user_id", null) // Only public foods
+    .order("usage_count", { ascending: false })
+    .limit(50);
 
+  // Today's logs
   const today = new Date().toISOString().split("T")[0];
   const { data: todayLogs } = await supabase
     .from("food_logs")
@@ -24,7 +28,7 @@ export default async function FoodLogPage() {
 
   return (
     <FoodLogClient
-      foods={foods ?? []}
+      popularFoods={popularFoods ?? []}
       todayLogs={todayLogs ?? []}
     />
   );

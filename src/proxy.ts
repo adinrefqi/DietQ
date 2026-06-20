@@ -1,7 +1,9 @@
+// Next.js 16 Proxy (dulu "middleware") — refresh sesi Supabase tiap request.
+// Konvensi `middleware` di-deprecate & di-rename jadi `proxy` (Next 16).
 import { updateSession } from "@/lib/supabase/middleware";
 import { type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
