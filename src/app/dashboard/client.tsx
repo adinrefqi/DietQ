@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { id } from "date-fns/locale";
@@ -9,14 +10,17 @@ import {
   Scale,
   Camera,
   UtensilsCrossed,
-  LogOut,
   TrendingUp,
+  Plus,
+  Loader2,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import type { DailyNutritionSummary, DailyWaterSummary, Profile } from "@/types/database";
 
 interface DashboardClientProps {
   profile: Profile | null;
   goals: unknown;
+  today: string; // tanggal "yyyy-MM-dd" sesuai server, dipakai utk insert air
   days: Array<{
     date: string;
     nutrition: DailyNutritionSummary | null;
@@ -24,7 +28,7 @@ interface DashboardClientProps {
   }>;
 }
 
-export function DashboardClient({ profile, goals, days }: DashboardClientProps) {
+export function DashboardClient({ profile, goals, days, today: todayDate }: DashboardClientProps) {
   const g = goals as {
     daily_calorie_target?: number;
     daily_protein_g?: number;
@@ -39,9 +43,33 @@ export function DashboardClient({ profile, goals, days }: DashboardClientProps) 
   // Hari ini
   const today = days[days.length - 1];
   const todayCal = today?.nutrition?.total_calories ?? 0;
-  const todayWater = today?.water?.total_water_ml ?? 0;
   const calPct = Math.min(100, Math.round((todayCal / calTarget) * 100));
-  const waterPct = Math.min(100, Math.round((todayWater / waterTarget) * 100));
+
+  // ── Air minum (interaktif, optimistic) ──
+  const supabase = createClient();
+  const [water, setWater] = useState<number>(today?.water?.total_water_ml ?? 0);
+  const [savingWater, setSavingWater] = useState(false);
+  const waterPct = Math.min(100, Math.round((water / waterTarget) * 100));
+
+  async function addWater(ml: number) {
+    if (savingWater) return;
+    setSavingWater(true);
+    const prev = water;
+    setWater(prev + ml); // optimistic
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error } = await supabase.from("water_logs").insert({
+      user_id: user?.id,
+      amount_ml: ml,
+      log_date: todayDate,
+    });
+    if (error) {
+      setWater(prev); // revert kalau gagal
+      alert(`Gagal menyimpan air: ${error.message}`);
+    }
+    setSavingWater(false);
+  }
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -90,7 +118,7 @@ export function DashboardClient({ profile, goals, days }: DashboardClientProps) 
               <Droplets className="h-4 w-4" />
               <span className="text-xs font-medium">Air</span>
             </div>
-            <p className="text-2xl font-bold text-zinc-900">{todayWater}</p>
+            <p className="text-2xl font-bold text-zinc-900">{water}</p>
             <div className="mt-2 h-1.5 rounded-full bg-zinc-100">
               <div
                 className="h-1.5 rounded-full bg-blue-500 transition-all"
@@ -100,8 +128,11 @@ export function DashboardClient({ profile, goals, days }: DashboardClientProps) 
             <p className="mt-1 text-xs text-zinc-400">{waterPct}% / {waterTarget} ml</p>
           </div>
 
-          {/* Berat */}
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+          {/* Berat → halaman tren */}
+          <Link
+            href="/dashboard/weight"
+            className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
+          >
             <div className="flex items-center gap-2 text-zinc-500 mb-1">
               <Scale className="h-4 w-4" />
               <span className="text-xs font-medium">Berat</span>
@@ -109,10 +140,48 @@ export function DashboardClient({ profile, goals, days }: DashboardClientProps) 
             <p className="text-2xl font-bold text-zinc-900">
               {profile?.current_weight_kg ?? "—"}
             </p>
-            <div className="mt-3 h-4 w-4">
-              <TrendingUp className="h-4 w-4 text-zinc-300" />
+            <div className="mt-3 flex items-center gap-1 text-blue-600">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs font-medium">Lihat tren</span>
             </div>
             <p className="mt-1 text-xs text-zinc-400">kg</p>
+          </Link>
+        </section>
+
+        {/* Catat Air Cepat */}
+        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-zinc-700">
+              <Droplets className="h-4 w-4 text-blue-500" />
+              <h2 className="text-sm font-semibold">Catat Air Minum</h2>
+            </div>
+            <span className="text-xs text-zinc-400">
+              {water} / {waterTarget} ml
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: "+ Gelas", sub: "250 ml", ml: 250 },
+              { label: "+ Botol", sub: "500 ml", ml: 500 },
+              { label: "+ Besar", sub: "750 ml", ml: 750 },
+            ].map((b) => (
+              <button
+                key={b.ml}
+                onClick={() => addWater(b.ml)}
+                disabled={savingWater}
+                className="flex flex-col items-center gap-0.5 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-zinc-700 transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
+              >
+                <span className="flex items-center gap-1 text-sm font-semibold">
+                  {savingWater ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Plus className="h-3.5 w-3.5" />
+                  )}
+                  {b.label}
+                </span>
+                <span className="text-xs text-zinc-400">{b.sub}</span>
+              </button>
+            ))}
           </div>
         </section>
 

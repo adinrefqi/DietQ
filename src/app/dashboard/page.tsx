@@ -51,6 +51,7 @@ export default async function DashboardPage() {
       profile={profile as Profile | null}
       goals={goals}
       days={days}
+      today={today}
     />
   );
 }

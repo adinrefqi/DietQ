@@ -27,7 +27,12 @@ export default function RootLayout({
       lang="id"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* suppressHydrationWarning: ekstensi browser (mis. Bitdefender) menyuntik
+          atribut bis_register/__processed ke <body> sebelum React hydrate.
+          Ini meredam warning palsu tsb tanpa memengaruhi kode aplikasi. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
