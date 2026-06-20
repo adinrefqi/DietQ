@@ -119,7 +119,7 @@ export function FoodLogClient({ popularFoods, todayLogs }: FoodLogClientProps) {
   // Filter foods by search (for popular display)
   const filteredFoods = searchQuery.trim()
     ? searchResults
-    : popularFoods.map((f) => ({ ...f, source: "local" as const }));
+    : popularFoods.map((f) => ({ ...f, source: "local" as const, is_user_food: false }));
 
   // Image compression
   const compressImage = (file: File): Promise<string> =>

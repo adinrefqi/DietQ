@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { PwaRegister } from "./pwa-register";
 
 const geistSans = Geist({
@@ -30,7 +31,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#059669",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#059669" },
+    { media: "(prefers-color-scheme: dark)", color: "#064e3b" },
+  ],
 };
 
 export default function RootLayout({
@@ -39,16 +43,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      {/* suppressHydrationWarning: ekstensi browser (mis. Bitdefender) menyuntik
-          atribut bis_register/__processed ke <body> sebelum React hydrate.
-          Ini meredam warning palsu tsb tanpa memengaruhi kode aplikasi. */}
-      <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
-        <PwaRegister />
+    <html lang="id" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-full flex flex-col antialiased`}
+        suppressHydrationWarning
+      >
+        <ThemeProvider>
+          {children}
+          <PwaRegister />
+        </ThemeProvider>
       </body>
     </html>
   );

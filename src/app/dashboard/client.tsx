@@ -19,6 +19,7 @@ import {
   History,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import type {
   DailyNutritionSummary,
   DailyWaterSummary,
@@ -29,7 +30,7 @@ import type {
 interface DashboardClientProps {
   profile: Profile | null;
   goals: unknown;
-  today: string; // tanggal "yyyy-MM-dd" sesuai server, dipakai utk insert air
+  today: string;
   days: Array<{
     date: string;
     nutrition: DailyNutritionSummary | null;
@@ -38,7 +39,6 @@ interface DashboardClientProps {
   activeFast: FastingSession | null;
 }
 
-// Format milidetik → "16j 23m"
 function fmtRemain(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 60000));
   const h = Math.floor(total / 60);
@@ -64,17 +64,15 @@ export function DashboardClient({
   const calTarget = g?.daily_calorie_target ?? 2000;
   const waterTarget = g?.daily_water_ml ?? 2000;
 
-  // Hari ini
   const today = days[days.length - 1];
   const todayCal = today?.nutrition?.total_calories ?? 0;
   const calPct = Math.min(100, Math.round((todayCal / calTarget) * 100));
-  const calLeft = calTarget - todayCal; // bisa negatif (kelebihan)
+  const calLeft = calTarget - todayCal;
 
-  // ── Timer puasa (live, hanya saat ada sesi aktif) ──
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     if (!activeFast) return;
-    const t = setInterval(() => setNowMs(Date.now()), 30000); // cukup 30 dtk di dashboard
+    const t = setInterval(() => setNowMs(Date.now()), 30000);
     return () => clearInterval(t);
   }, [activeFast]);
 
@@ -92,7 +90,6 @@ export function DashboardClient({
       })()
     : null;
 
-  // ── Air minum (interaktif, optimistic) ──
   const supabase = createClient();
   const [water, setWater] = useState<number>(today?.water?.total_water_ml ?? 0);
   const [savingWater, setSavingWater] = useState(false);
@@ -102,37 +99,36 @@ export function DashboardClient({
     if (savingWater) return;
     setSavingWater(true);
     const prev = water;
-    setWater(prev + ml); // optimistic
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    setWater(prev + ml);
+    const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("water_logs").insert({
       user_id: user?.id,
       amount_ml: ml,
       log_date: todayDate,
     });
     if (error) {
-      setWater(prev); // revert kalau gagal
+      setWater(prev);
       alert(`Gagal menyimpan air: ${error.message}`);
     }
     setSavingWater(false);
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors">
       {/* Header */}
-      <header className="bg-white border-b border-zinc-200 px-4 py-4">
+      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 transition-colors">
         <div className="mx-auto max-w-2xl flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-zinc-900">DietQ</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">DietQ</h1>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
               {profile?.display_name ?? "User"} · Dashboard
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href="/dashboard/profile"
-              className="rounded-full bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-200 transition-colors"
+              className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
             >
               Profil
             </Link>
@@ -141,71 +137,68 @@ export function DashboardClient({
       </header>
 
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-6">
-        {/* Quick Stats Hari Ini */}
+        {/* Quick Stats */}
         <section className="grid grid-cols-3 gap-3">
-          {/* Kalori */}
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-            <div className="flex items-center gap-2 text-zinc-500 mb-1">
+          <div className="rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
+            <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
               <Flame className="h-4 w-4" />
               <span className="text-xs font-medium">Kalori</span>
             </div>
-            <p className="text-2xl font-bold text-zinc-900">{todayCal}</p>
-            <div className="mt-2 h-1.5 rounded-full bg-zinc-100">
+            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{todayCal}</p>
+            <div className="mt-2 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
                 className={`h-1.5 rounded-full transition-all ${calLeft < 0 ? "bg-red-500" : "bg-orange-500"}`}
                 style={{ width: `${calPct}%` }}
               />
             </div>
-            <p className={`mt-1 text-xs font-medium ${calLeft < 0 ? "text-red-500" : "text-zinc-500"}`}>
-              {calLeft >= 0 ? `Sisa ${calLeft} kcal` : `Lebih ${Math.abs(calLeft)} kcal`}
+            <p className={`mt-1 text-xs font-medium ${calLeft < 0 ? "text-red-500" : "text-zinc-500 dark:text-zinc-400"}`}>
+              {calLeft >= 0 ? `Sisa ${calLeft}` : `Lebih ${Math.abs(calLeft)}`}
             </p>
-            <p className="text-xs text-zinc-400">/ {calTarget} kcal</p>
+            <p className="text-xs text-zinc-400 dark:text-zinc-500">/ {calTarget} kcal</p>
           </div>
 
-          {/* Air */}
-          <div className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
-            <div className="flex items-center gap-2 text-zinc-500 mb-1">
+          <div className="rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
+            <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
               <Droplets className="h-4 w-4" />
               <span className="text-xs font-medium">Air</span>
             </div>
-            <p className="text-2xl font-bold text-zinc-900">{water}</p>
-            <div className="mt-2 h-1.5 rounded-full bg-zinc-100">
+            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">{water}</p>
+            <div className="mt-2 h-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800">
               <div
                 className="h-1.5 rounded-full bg-blue-500 transition-all"
                 style={{ width: `${waterPct}%` }}
               />
             </div>
-            <p className="mt-1 text-xs text-zinc-400">{waterPct}% / {waterTarget} ml</p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">{waterPct}% / {waterTarget} ml</p>
           </div>
 
-          {/* Berat → halaman tren */}
           <Link
             href="/dashboard/weight"
-            className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
+            className="rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
           >
-            <div className="flex items-center gap-2 text-zinc-500 mb-1">
+            <div className="flex items-center gap-2 text-zinc-500 dark:text-zinc-400 mb-1">
               <Scale className="h-4 w-4" />
               <span className="text-xs font-medium">Berat</span>
             </div>
-            <p className="text-2xl font-bold text-zinc-900">
+            <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
               {profile?.current_weight_kg ?? "—"}
             </p>
-            <div className="mt-3 flex items-center gap-1 text-blue-600">
+            <div className="mt-3 flex items-center gap-1 text-blue-600 dark:text-blue-400">
               <TrendingUp className="h-4 w-4" />
               <span className="text-xs font-medium">Lihat tren</span>
             </div>
-            <p className="mt-1 text-xs text-zinc-400">kg</p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">kg</p>
           </Link>
         </section>
 
-        {/* Catat Air Cepat */}
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200">
+        {/* Water Logging */}
+        <section className="rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
           <div className="mb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-zinc-700">
+            <div className="flex items-center gap-2 text-zinc-700 dark:text-zinc-300">
               <Droplets className="h-4 w-4 text-blue-500" />
               <h2 className="text-sm font-semibold">Catat Air Minum</h2>
             </div>
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-zinc-400 dark:text-zinc-500">
               {water} / {waterTarget} ml
             </span>
           </div>
@@ -219,7 +212,7 @@ export function DashboardClient({
                 key={b.ml}
                 onClick={() => addWater(b.ml)}
                 disabled={savingWater}
-                className="flex flex-col items-center gap-0.5 rounded-xl border border-zinc-200 bg-zinc-50 py-3 text-zinc-700 transition-colors hover:border-blue-400 hover:bg-blue-50 disabled:opacity-50"
+                className="flex flex-col items-center gap-0.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 py-3 text-zinc-700 dark:text-zinc-300 transition-colors hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-50"
               >
                 <span className="flex items-center gap-1 text-sm font-semibold">
                   {savingWater ? (
@@ -229,37 +222,37 @@ export function DashboardClient({
                   )}
                   {b.label}
                 </span>
-                <span className="text-xs text-zinc-400">{b.sub}</span>
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">{b.sub}</span>
               </button>
             ))}
           </div>
         </section>
 
-        {/* Aksi Cepat */}
+        {/* Quick Actions */}
         <section className="grid grid-cols-2 gap-3">
           <Link
             href="/dashboard/log"
-            className="flex items-center gap-3 rounded-2xl bg-zinc-900 px-5 py-4 text-white transition-colors hover:bg-zinc-800"
+            className="flex items-center gap-3 rounded-2xl bg-zinc-900 dark:bg-emerald-600 px-5 py-4 text-white transition-colors hover:bg-zinc-800 dark:hover:bg-emerald-500"
           >
             <Camera className="h-6 w-6" />
             <div>
               <p className="font-semibold">Catat Makanan</p>
-              <p className="text-xs text-zinc-400">Foto atau cari manual</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-200">Foto atau cari manual</p>
             </div>
           </Link>
           <Link
             href="/dashboard/log"
-            className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
+            className="flex items-center gap-3 rounded-2xl bg-white dark:bg-zinc-900 px-5 py-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
           >
-            <UtensilsCrossed className="h-6 w-6 text-zinc-600" />
+            <UtensilsCrossed className="h-6 w-6 text-zinc-600 dark:text-zinc-400" />
             <div>
-              <p className="font-semibold text-zinc-900">Cari Makanan</p>
-              <p className="text-xs text-zinc-500">Database nutrisi</p>
+              <p className="font-semibold text-zinc-900 dark:text-zinc-100">Cari Makanan</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Database nutrisi</p>
             </div>
           </Link>
         </section>
 
-        {/* Insight AI Mingguan */}
+        {/* AI Insight */}
         <Link
           href="/dashboard/insight"
           className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-4 text-white transition-opacity hover:opacity-90"
@@ -272,7 +265,7 @@ export function DashboardClient({
           <ChevronRight className="h-5 w-5 text-white/80" />
         </Link>
 
-        {/* Intermittent Fasting — status live kalau ada sesi aktif */}
+        {/* Fasting */}
         {fast ? (
           <Link
             href="/dashboard/fasting"
@@ -309,22 +302,22 @@ export function DashboardClient({
         ) : (
           <Link
             href="/dashboard/fasting"
-            className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
+            className="flex items-center gap-3 rounded-2xl bg-white dark:bg-zinc-900 px-5 py-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400">
               <Hourglass className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-zinc-900">Intermittent Fasting</p>
-              <p className="text-xs text-zinc-500">Timer puasa berjendela (16:8, dll)</p>
+              <p className="font-semibold text-zinc-900 dark:text-zinc-100">Intermittent Fasting</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">Timer puasa berjendela (16:8, dll)</p>
             </div>
-            <ChevronRight className="h-5 w-5 text-zinc-400" />
+            <ChevronRight className="h-5 w-5 text-zinc-400 dark:text-zinc-600" />
           </Link>
         )}
 
-        {/* Grafik 7 Hari */}
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-          <h2 className="mb-4 text-sm font-semibold text-zinc-900">Kalori 7 Hari Terakhir</h2>
+        {/* 7 Day Chart */}
+        <section className="rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
+          <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Kalori 7 Hari Terakhir</h2>
           <div className="flex items-end gap-1.5 h-32">
             {days.map((d) => {
               const cal = d.nutrition?.total_calories ?? 0;
@@ -334,74 +327,70 @@ export function DashboardClient({
                 <div key={d.date} className="flex flex-1 flex-col items-center gap-1">
                   <div className="w-full flex flex-col justify-end" style={{ height: "128px" }}>
                     <div
-                      className={`w-full rounded-sm transition-all ${isToday ? "bg-orange-500" : "bg-zinc-200"}`}
+                      className={`w-full rounded-sm transition-all ${isToday ? "bg-orange-500" : "bg-zinc-200 dark:bg-zinc-700"}`}
                       style={{ height: `${height}%` }}
                       title={`${cal} kcal`}
                     />
                   </div>
-                  <span className={`text-xs ${isToday ? "font-semibold text-zinc-900" : "text-zinc-400"}`}>
+                  <span className={`text-xs ${isToday ? "font-semibold text-zinc-900 dark:text-zinc-100" : "text-zinc-400 dark:text-zinc-600"}`}>
                     {format(parseISO(d.date), "EEE", { locale: id })}
                   </span>
                 </div>
               );
             })}
           </div>
-          {/* Garis target */}
-          <div className="relative mt-2 h-0 border-b border-dashed border-zinc-300">
-            <span className="absolute -top-3 right-0 text-xs text-zinc-400">Target: {calTarget} kcal</span>
+          <div className="relative mt-2 h-0 border-b border-dashed border-zinc-300 dark:border-zinc-700">
+            <span className="absolute -top-3 right-0 text-xs text-zinc-400 dark:text-zinc-600">Target: {calTarget} kcal</span>
           </div>
         </section>
 
-        {/* Macro Breakdown */}
+        {/* Macros */}
         {today.nutrition && (
-          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
-            <h2 className="mb-4 text-sm font-semibold text-zinc-900">Makronutrien Hari Ini</h2>
+          <section className="rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Makronutrien Hari Ini</h2>
             <div className="space-y-3">
-              {/* Protein */}
               <div>
                 <div className="mb-1 flex justify-between text-xs">
-                  <span className="font-medium text-zinc-700">Protein</span>
-                  <span className="text-zinc-500">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">Protein</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
                     {Math.round(today.nutrition.total_protein_g)}g / {g?.daily_protein_g ?? 150}g
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-zinc-100">
+                <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
                   <div
-                    className="h-2 rounded-full bg-blue-500 transition-all"
+                    className="h-2 rounded-full bg-blue-500 dark:bg-blue-600 transition-all"
                     style={{
                       width: `${Math.min(100, ((today.nutrition.total_protein_g / (g?.daily_protein_g ?? 150)) * 100))}%`,
                     }}
                   />
                 </div>
               </div>
-              {/* Karbo */}
               <div>
                 <div className="mb-1 flex justify-between text-xs">
-                  <span className="font-medium text-zinc-700">Karbohidrat</span>
-                  <span className="text-zinc-500">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">Karbohidrat</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
                     {Math.round(today.nutrition.total_carbs_g)}g / {g?.daily_carbs_g ?? 200}g
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-zinc-100">
+                <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
                   <div
-                    className="h-2 rounded-full bg-amber-500 transition-all"
+                    className="h-2 rounded-full bg-amber-500 dark:bg-amber-600 transition-all"
                     style={{
                       width: `${Math.min(100, ((today.nutrition.total_carbs_g / (g?.daily_carbs_g ?? 200)) * 100))}%`,
                     }}
                   />
                 </div>
               </div>
-              {/* Lemak */}
               <div>
                 <div className="mb-1 flex justify-between text-xs">
-                  <span className="font-medium text-zinc-700">Lemak</span>
-                  <span className="text-zinc-500">
+                  <span className="font-medium text-zinc-700 dark:text-zinc-300">Lemak</span>
+                  <span className="text-zinc-500 dark:text-zinc-400">
                     {Math.round(today.nutrition.total_fat_g)}g / {g?.daily_fat_g ?? 65}g
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-zinc-100">
+                <div className="h-2 rounded-full bg-zinc-100 dark:bg-zinc-800">
                   <div
-                    className="h-2 rounded-full bg-pink-500 transition-all"
+                    className="h-2 rounded-full bg-pink-500 dark:bg-pink-600 transition-all"
                     style={{
                       width: `${Math.min(100, ((today.nutrition.total_fat_g / (g?.daily_fat_g ?? 65)) * 100))}%`,
                     }}
@@ -412,28 +401,28 @@ export function DashboardClient({
           </section>
         )}
 
-        {/* Meal Log Summary */}
-        <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
+        {/* Meal Log */}
+        <section className="rounded-2xl bg-white dark:bg-zinc-900 p-5 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-zinc-900">Log Makanan</h2>
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Log Makanan</h2>
             <Link
               href="/dashboard/history"
-              className="flex items-center gap-1 text-xs font-medium text-zinc-500 hover:text-zinc-800"
+              className="flex items-center gap-1 text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200"
             >
               <History className="h-3.5 w-3.5" />
               Riwayat & edit
             </Link>
           </div>
           {today.nutrition && today.nutrition.meal_count > 0 ? (
-            <p className="text-sm text-zinc-600">
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
               {today.nutrition.meal_count} makanan · {today.nutrition.total_calories} kcal
             </p>
           ) : (
             <div className="py-4 text-center">
-              <p className="text-sm text-zinc-400">Belum ada makanan hari ini</p>
+              <p className="text-sm text-zinc-400 dark:text-zinc-500">Belum ada makanan hari ini</p>
               <Link
                 href="/dashboard/log"
-                className="mt-2 inline-block text-sm font-medium text-zinc-900 underline underline-offset-4"
+                className="mt-2 inline-block text-sm font-medium text-zinc-900 dark:text-zinc-100 underline underline-offset-4"
               >
                 + Catat makanan
               </Link>
