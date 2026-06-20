@@ -11,15 +11,17 @@ import {
   Loader2,
   Check,
   ChevronLeft,
+  ScanLine,
 } from "lucide-react";
 import type { FoodItem, FoodLog } from "@/types/database";
+import { BarcodeScanner } from "./BarcodeScanner";
 
 interface FoodLogClientProps {
   foods: FoodItem[];
   todayLogs: FoodLog[];
 }
 
-type Tab = "camera" | "search" | "today";
+type Tab = "camera" | "barcode" | "search" | "today";
 
 export function FoodLogClient({ foods, todayLogs }: FoodLogClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>("camera");
@@ -187,6 +189,7 @@ export function FoodLogClient({ foods, todayLogs }: FoodLogClientProps) {
   // Tab definitions
   const tabs = [
     { id: "camera", label: "Kamera", icon: Camera },
+    { id: "barcode", label: "Scan", icon: ScanLine },
     { id: "search", label: "Cari", icon: Search },
     { id: "today", label: "Hari Ini", icon: Check },
   ] as const;
@@ -333,6 +336,35 @@ export function FoodLogClient({ foods, todayLogs }: FoodLogClientProps) {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ── BARCODE TAB ── */}
+        {activeTab === "barcode" && (
+          <div className="space-y-4">
+            {/* Meal selector (sama seperti tab kamera) */}
+            <div className="flex gap-2">
+              {(["breakfast", "lunch", "dinner", "snack"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setSelectedMeal(m)}
+                  className={`flex-1 rounded-lg border py-2 text-xs font-medium transition-colors ${
+                    selectedMeal === m
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
+                  }`}
+                >
+                  {m === "breakfast" ? "Sarapan" : m === "lunch" ? "Makan Siang" : m === "dinner" ? "Makan Malam" : "Snack"}
+                </button>
+              ))}
+            </div>
+
+            <BarcodeScanner
+              submitting={submitting}
+              onAdd={(food) =>
+                handleSubmitLog({ ...food, input_method: "manual" })
+              }
+            />
           </div>
         )}
 

@@ -159,6 +159,20 @@ export interface NutritionEstimation {
   kategori: string;
 }
 
+// ── Barcode (Open Food Facts) ──────────────────────────────────────────────
+
+export interface BarcodeProduct {
+  code: string;
+  name: string;
+  per100g: {
+    calories: number;
+    protein_g: number;
+    carbs_g: number;
+    fat_g: number;
+  };
+  serving_size_g: number | null;
+}
+
 // ── AI Weekly Insight ──────────────────────────────────────────────────────
 
 // Input ringkas yang dikirim ke LLM (dibangun di API route dari view Supabase)
