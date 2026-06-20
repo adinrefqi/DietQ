@@ -7,17 +7,28 @@ import type { NutritionEstimation } from "@/types/database";
 // ⚠️ Pakai prefix ARKODA_ (bukan ANTHROPIC_) supaya TIDAK bentrok dengan env
 // var sistem (mis. ANTHROPIC_BASE_URL milik Claude Code). Next.js tidak menimpa
 // env var yang sudah ada di shell, jadi nama ANTHROPIC_* bisa nyasar gateway.
-const BASE = (process.env.ARKODA_BASE_URL ?? "https://api.arkoda.cloud").replace(
-  /\/+$/,
-  ""
-);
+const MODEL = process.env.ARKODA_MODEL ?? "kr/claude-opus-4.6";
 
-export const llm = new OpenAI({
-  baseURL: `${BASE}/v1`,
-  apiKey: process.env.ARKODA_API_KEY!,
-});
-
-export const MODEL = process.env.ARKODA_MODEL ?? "kr/claude-opus-4.6";
+// ⚠️ Client dibuat LAZY (bukan di level modul). Kalau di-instantiate saat import,
+// `next build` (collecting page data) ikut import route ini dan langsung error
+// "Missing credentials" karena ARKODA_API_KEY belum tersedia saat build.
+// Dengan lazy, key baru dibutuhkan saat ada request nyata.
+let _llm: OpenAI | null = null;
+function getLLM(): OpenAI {
+  if (_llm) return _llm;
+  const base = (process.env.ARKODA_BASE_URL ?? "https://api.arkoda.cloud").replace(
+    /\/+$/,
+    ""
+  );
+  const apiKey = process.env.ARKODA_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "ARKODA_API_KEY belum di-set. Tambahkan di Environment Variables Vercel (atau .env.local untuk lokal)."
+    );
+  }
+  _llm = new OpenAI({ baseURL: `${base}/v1`, apiKey });
+  return _llm;
+}
 
 const SYSTEM_NUTRITION = `Kamu ahli gizi Indonesia. Balas HANYA JSON (tanpa markdown/preamble/fence):
 {"makanan":"nama","perkiraan_gram":150,"kalori":200,"protein_g":10,"karbohidrat_g":25,"lemak_g":8,"kategori":"makanan utama"}`;
@@ -26,7 +37,7 @@ const SYSTEM_NUTRITION = `Kamu ahli gizi Indonesia. Balas HANYA JSON (tanpa mark
 export async function estimateNutritionFromImage(
   imageDataURI: string
 ): Promise<NutritionEstimation> {
-  const res = await llm.chat.completions.create({
+  const res = await getLLM().chat.completions.create({
     model: MODEL,
     max_tokens: 512,
     messages: [
@@ -55,7 +66,7 @@ export async function estimateNutritionFromImage(
 
 /** Prompt teks → jawaban string */
 export async function askLLM(prompt: string): Promise<string> {
-  const res = await llm.chat.completions.create({
+  const res = await getLLM().chat.completions.create({
     model: MODEL,
     max_tokens: 1024,
     messages: [{ role: "user", content: prompt }],

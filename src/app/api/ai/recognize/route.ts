@@ -6,6 +6,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { estimateNutritionFromImage } from "@/lib/llm";
 
+// Route ini butuh secret + auth → selalu dinamis, jangan di-prerender saat build
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(request: NextRequest) {
   // 1. Auth check
   const supabase = await createClient();
