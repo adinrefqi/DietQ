@@ -40,16 +40,53 @@ export function FoodLogClient({ foods, todayLogs }: FoodLogClientProps) {
     f.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Perkecil + kompres gambar di browser sebelum dikirim ke API.
+  // WAJIB: foto kamera HP bisa 3–8 MB; base64-nya menembus batas body Vercel
+  // (~4.5 MB) → server balas teks "Request Entity Too Large" (bukan JSON) →
+  // res.json() crash. Downscale ke maks 1024px + JPEG 0.7 → ratusan KB saja.
+  const compressImage = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 1024;
+          let { width, height } = img;
+          if (width > MAX || height > MAX) {
+            if (width >= height) {
+              height = Math.round((height * MAX) / width);
+              width = MAX;
+            } else {
+              width = Math.round((width * MAX) / height);
+              height = MAX;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Canvas tidak didukung"));
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.7));
+        };
+        img.onerror = () => reject(new Error("Gambar tidak bisa dibaca"));
+        img.src = ev.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error("Gagal membaca file"));
+      reader.readAsDataURL(file);
+    });
+
   // Handle image upload from camera/file
-  const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setCameraImage(ev.target?.result as string);
+    try {
+      const compressed = await compressImage(file);
+      setCameraImage(compressed);
       setAiResult(null);
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      alert(`Gagal memproses gambar: ${err}`);
+    }
   }, []);
 
   // Call AI to recognize food
@@ -63,8 +100,18 @@ export function FoodLogClient({ foods, todayLogs }: FoodLogClientProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64: cameraImage.split(",")[1] }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      // Server bisa balas teks polos (mis. 413 "Request Entity Too Large" dari
+      // Vercel) yang bukan JSON → jangan langsung res.json() supaya tak crash.
+      const text = await res.text();
+      if (!res.ok) {
+        if (res.status === 413) {
+          throw new Error("Foto terlalu besar. Coba foto ulang / pilih gambar lebih kecil.");
+        }
+        let msg = text;
+        try { msg = JSON.parse(text).error ?? text; } catch {}
+        throw new Error(msg);
+      }
+      const data = JSON.parse(text);
       setAiResult(data.nutrition);
     } catch (err) {
       alert(`Gagal mengenali makanan: ${err}`);
