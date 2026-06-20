@@ -2,7 +2,11 @@
 // ⚠️ JANGAN import di client-side (browser) — API key harus di server!
 
 import OpenAI from "openai";
-import type { NutritionEstimation } from "@/types/database";
+import type {
+  NutritionEstimation,
+  WeeklyInsightInput,
+  WeeklyInsight,
+} from "@/types/database";
 
 // ⚠️ Pakai prefix ARKODA_ (bukan ANTHROPIC_) supaya TIDAK bentrok dengan env
 // var sistem (mis. ANTHROPIC_BASE_URL milik Claude Code). Next.js tidak menimpa
@@ -61,6 +65,37 @@ export async function estimateNutritionFromImage(
     return JSON.parse(cleaned) as NutritionEstimation;
   } catch {
     throw new Error(`Gagal parse respons LLM: ${raw.slice(0, 200)}`);
+  }
+}
+
+const SYSTEM_INSIGHT = `Kamu ahli gizi & pelatih diet Indonesia yang suportif tapi jujur.
+Diberi data nutrisi 7 hari terakhir seorang user beserta targetnya, buat insight mingguan.
+Bahasa Indonesia, ringkas, konkret, dan bisa langsung ditindaklanjuti (sebut angka bila relevan).
+Balas HANYA JSON (tanpa markdown/fence/preamble) dengan bentuk PERSIS:
+{"skor":78,"ringkasan":"1-2 kalimat","hal_baik":["..."],"perlu_diperbaiki":["..."],"saran":["..."]}
+- skor: bilangan bulat 0-100 (kepatuhan & kualitas diet minggu ini).
+- hal_baik, perlu_diperbaiki, saran: masing-masing 2-4 poin singkat.`;
+
+/** Data nutrisi 7 hari → insight mingguan (JSON) */
+export async function weeklyInsight(
+  input: WeeklyInsightInput
+): Promise<WeeklyInsight> {
+  const res = await getLLM().chat.completions.create({
+    model: MODEL,
+    max_tokens: 900,
+    messages: [
+      { role: "system", content: SYSTEM_INSIGHT },
+      { role: "user", content: JSON.stringify(input) },
+    ],
+  });
+
+  const raw = res.choices[0]?.message?.content ?? "";
+  const cleaned = raw.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  try {
+    return JSON.parse(cleaned) as WeeklyInsight;
+  } catch {
+    throw new Error(`Gagal parse respons insight LLM: ${raw.slice(0, 200)}`);
   }
 }
 

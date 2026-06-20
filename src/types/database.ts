@@ -108,6 +108,19 @@ export interface WaterLog {
   logged_at: string;
 }
 
+// Protokol puasa berjendela. Angka = jam puasa : jam jendela makan.
+export type FastingProtocol = "16:8" | "18:6" | "20:4" | "14:10" | "23:1" | "custom";
+
+export interface FastingSession {
+  id: string;
+  user_id: string;
+  protocol: string;
+  target_hours: number;
+  start_at: string;
+  end_at: string | null; // null = puasa masih berjalan
+  created_at: string;
+}
+
 // ── Views ──────────────────────────────────────────────────────────────────
 
 export interface DailyNutritionSummary {
@@ -144,6 +157,38 @@ export interface NutritionEstimation {
   karbohidrat_g: number;
   lemak_g: number;
   kategori: string;
+}
+
+// ── AI Weekly Insight ──────────────────────────────────────────────────────
+
+// Input ringkas yang dikirim ke LLM (dibangun di API route dari view Supabase)
+export interface WeeklyInsightInput {
+  days: Array<{
+    tanggal: string;
+    kalori: number;
+    protein_g: number;
+    karbo_g: number;
+    lemak_g: number;
+    air_ml: number;
+    jumlah_makan: number;
+  }>;
+  target: {
+    kalori: number;
+    protein_g: number;
+    karbo_g: number;
+    lemak_g: number;
+    air_ml: number;
+  };
+  berat: { awal_kg: number; akhir_kg: number } | null;
+}
+
+// Hasil insight (JSON dari LLM)
+export interface WeeklyInsight {
+  skor: number; // 0–100, kepatuhan/kualitas diet minggu ini
+  ringkasan: string;
+  hal_baik: string[];
+  perlu_diperbaiki: string[];
+  saran: string[];
 }
 
 // ── Dashboard aggregations ─────────────────────────────────────────────────

@@ -13,6 +13,9 @@ import {
   TrendingUp,
   Plus,
   Loader2,
+  Sparkles,
+  ChevronRight,
+  Hourglass,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type { DailyNutritionSummary, DailyWaterSummary, Profile } from "@/types/database";
@@ -208,6 +211,34 @@ export function DashboardClient({ profile, goals, days, today: todayDate }: Dash
             </div>
           </Link>
         </section>
+
+        {/* Insight AI Mingguan */}
+        <Link
+          href="/dashboard/insight"
+          className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-indigo-600 px-5 py-4 text-white transition-opacity hover:opacity-90"
+        >
+          <Sparkles className="h-6 w-6" />
+          <div className="flex-1">
+            <p className="font-semibold">Insight AI Mingguan</p>
+            <p className="text-xs text-white/80">Analisis pola dietmu 7 hari terakhir</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-white/80" />
+        </Link>
+
+        {/* Intermittent Fasting */}
+        <Link
+          href="/dashboard/fasting"
+          className="flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-zinc-200 transition-colors hover:bg-zinc-50"
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 text-indigo-600">
+            <Hourglass className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-zinc-900">Intermittent Fasting</p>
+            <p className="text-xs text-zinc-500">Timer puasa berjendela (16:8, dll)</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-zinc-400" />
+        </Link>
 
         {/* Grafik 7 Hari */}
         <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200">
