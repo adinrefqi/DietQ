@@ -19,7 +19,6 @@ import {
   History,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import type {
   DailyNutritionSummary,
   DailyWaterSummary,
@@ -114,29 +113,7 @@ export function DashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 transition-colors">
-      {/* Header */}
-      <header className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 px-4 py-4 transition-colors">
-        <div className="mx-auto max-w-2xl flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-100">DietQ</h1>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {profile?.display_name ?? "User"} · Dashboard
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Link
-              href="/dashboard/profile"
-              className="rounded-full bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-            >
-              Profil
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-2xl space-y-6 px-4 py-6">
+    <div className="mx-auto max-w-2xl space-y-6 px-4 py-6">
         {/* Quick Stats */}
         <section className="grid grid-cols-3 gap-3">
           <div className="rounded-2xl bg-white dark:bg-zinc-900 p-4 shadow-sm ring-1 ring-zinc-200 dark:ring-zinc-800 transition-colors">
@@ -429,7 +406,6 @@ export function DashboardClient({
             </div>
           )}
         </section>
-      </main>
     </div>
   );
 }
